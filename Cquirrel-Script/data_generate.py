@@ -40,7 +40,7 @@ def generate_tpch_tbl(scale_factor=1.0, output_dir="."):
                     FORMAT CSV,
                     DELIMITER '|',
                     HEADER FALSE,
-                    QUOTE ''  # Disable quotes to avoid escaping special characters in fields
+                    QUOTE ''
                 );
             """)
             print(f"Exported table {table} to {output_path}")
@@ -52,4 +52,4 @@ def generate_tpch_tbl(scale_factor=1.0, output_dir="."):
 
 if __name__ == "__main__":
     # Generate small-scale data (sf=0.1 is approximately 100MB) and output to current directory
-    generate_tpch_tbl(scale_factor=0.1, output_dir=".")
+    generate_tpch_tbl(scale_factor=0.01, output_dir="./data")
