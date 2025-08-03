@@ -58,7 +58,7 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
             }
 
             resultState.update(result);
-            LOG.debug("聚合结果更新: {}", result);
+            LOG.info("聚合结果更新: {}", result);
             out.collect(result.toString());
         } catch (Exception e) {
             LOG.error("聚合计算异常", e);

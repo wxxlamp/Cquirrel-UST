@@ -6,9 +6,7 @@ import cn.wxxlamp.ust.hk.entity.LineItem;
 import cn.wxxlamp.ust.hk.entity.Orders;
 import cn.wxxlamp.ust.hk.function.AggregateProcessFunction;
 import cn.wxxlamp.ust.hk.function.base.SplitStreamFunction;
-import cn.wxxlamp.ust.hk.function.entity.CustomerProcessFunction;
-import cn.wxxlamp.ust.hk.function.entity.LineItemProcessFunction;
-import cn.wxxlamp.ust.hk.function.entity.OrdersProcessFunction;
+import cn.wxxlamp.ust.hk.function.entity.*;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
@@ -47,23 +45,25 @@ public class CquirrelJob {
         DataStream<Orders> ordersStream = mainDataStream.getSideOutput(SplitStreamFunction.ORDERS_TAG);
         DataStream<LineItem> lineitemStream = mainDataStream.getSideOutput(SplitStreamFunction.LINEITEM_TAG);
 
+        CustomerGroupBy customerGroupBy = new CustomerGroupBy();
+        OrdersGroupBy ordersGroupBy = new OrdersGroupBy();
         // 处理客户数据，过滤汽车市场客户
         DataStream<Customer> processedCustomerStream = customerStream
-                .keyBy(Customer::getKeyValue)
+                .keyBy(customerGroupBy)
                 .process(new CustomerProcessFunction())
                 .name("Customer Processor");
 
         // 关联客户和订单
         DataStream<Orders> processedOrdersStream = processedCustomerStream
                 .connect(ordersStream)
-                .keyBy(Customer::getKeyValue, Orders::getKeyValue)
+                .keyBy(customerGroupBy, ordersGroupBy)
                 .process(new OrdersProcessFunction())
                 .name("Orders Processor");
 
         // 关联订单和订单项
         DataStream<LineItem> processedLineItemStream = processedOrdersStream
                 .connect(lineitemStream)
-                .keyBy(Orders::getKeyValue, LineItem::getKeyValue)
+                .keyBy(ordersGroupBy, new LineItemGroupBy())
                 .process(new LineItemProcessFunction())
                 .name("LineItem Processor");
 
