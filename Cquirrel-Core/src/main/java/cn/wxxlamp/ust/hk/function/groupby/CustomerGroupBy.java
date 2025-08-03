@@ -1,4 +1,4 @@
-package cn.wxxlamp.ust.hk.function.entity;
+package cn.wxxlamp.ust.hk.function.groupby;
 
 import cn.wxxlamp.ust.hk.entity.Customer;
 import org.apache.flink.api.java.functions.KeySelector;

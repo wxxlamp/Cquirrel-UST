@@ -24,6 +24,7 @@ import java.util.HashSet;
  * @version 2025-08-03 17:15
  */
 public class OrdersProcessFunction extends KeyedCoProcessFunction<String, Customer, Orders, Orders> {
+
     private static final Logger LOG = LoggerFactory.getLogger(OrdersProcessFunction.class);
     private static final String FUNCTION_NAME = "OrdersProcessFunction";
 

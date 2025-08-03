@@ -7,6 +7,10 @@ import cn.wxxlamp.ust.hk.entity.Orders;
 import cn.wxxlamp.ust.hk.function.AggregateProcessFunction;
 import cn.wxxlamp.ust.hk.function.base.SplitStreamFunction;
 import cn.wxxlamp.ust.hk.function.entity.*;
+import cn.wxxlamp.ust.hk.function.groupby.CustomerGroupBy;
+import cn.wxxlamp.ust.hk.function.groupby.LineItemGroupBy;
+import cn.wxxlamp.ust.hk.function.groupby.OrdersGroupBy;
+import cn.wxxlamp.ust.hk.sink.RevenueAggregateSink;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
@@ -74,7 +78,8 @@ public class CquirrelJob {
                 .name("Q3 Aggregator");
 
         // 输出结果
-        resultStream.print("Q3 Result");
+        resultStream.addSink(new RevenueAggregateSink())
+                .name("Revenue Aggregate Sink");
 
         // 执行作业
         env.execute("TPC-H Q3 Query Processing");
