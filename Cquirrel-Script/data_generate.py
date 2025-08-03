@@ -24,9 +24,7 @@ def generate_tpch_tbl(scale_factor=1.0, output_dir="."):
         tables = [
             "customer",
             "lineitem",
-            "nation",
-            "orders",
-            "supplier"
+            "orders"
         ]
 
         # Export each table as a .tbl file (pipe-separated, no header)

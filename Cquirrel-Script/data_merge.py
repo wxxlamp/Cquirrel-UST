@@ -1,51 +1,35 @@
 import random
 
-def read_all_lines(file_name):
-    file_name = './data/' + file_name
-    with open(file_name, 'r') as file:
-        lines = file.readlines()
-    return lines
+def read_lines(file_name, limit=None):
+    with open(file_name, 'r') as f:
+        lines = f.readlines()
+    return lines[:limit] if limit else lines
 
-def write_all_lines(file_names1,file_names2, output_file):
-    rows1 = []
+def generate_q3_input():
+    # 读取TPC-H原始表数据
+    customer_lines = read_lines('./data/customer.tbl')
+    orders_lines = read_lines('./data/orders.tbl', 100000)  # 限制订单数据量
+    lineitem_lines = read_lines('./data/lineitem.tbl', 500000)
 
-    for file_name in file_names1:
-        lines = read_all_lines(file_name)
-        file_prefix = file_name.replace('.tbl', '')
-        for i, line in enumerate(lines):
-            rows1.append(f"{file_prefix}|{line.strip()}\n")
-    rows2 = []
-    for file_name in file_names2:
-        lines = read_all_lines(file_name)
-        file_prefix = file_name.replace('.tbl', '')
-        for i, line in enumerate(lines):
-            if i == 500000:
-                break
-            rows2.append(f"{file_prefix}|{line.strip()}\n")
-    random.shuffle(rows2)
-    with open(output_file, 'w') as output:
-        for row in rows1:
-            output.write(row)
-        for row in rows2:
-            output.write(row)
+    # 生成带操作符的输入数据（INSERT/DELETE）
+    output = []
+    for line in customer_lines:
+        output.append(f"INSERT|customer|{line.strip()}")
+    for line in orders_lines:
+        output.append(f"INSERT|orders|{line.strip()}")
+    for line in lineitem_lines:
+        output.append(f"INSERT|lineitem|{line.strip()}")
 
+    # 随机插入一些DELETE操作（模拟数据变更）
+    random.shuffle(output)
+    for i in range(1000):  # 随机删除1000条记录
+        idx = random.randint(0, len(output)-1)
+        output[idx] = output[idx].replace("INSERT", "DELETE")
 
-def main():
-    file_names1 = [
-        'customer.tbl',
-        'nation.tbl',
-        'supplier.tbl'
-    ]
-
-    file_names2 = [
-        'lineitem.tbl',
-        'orders.tbl',
-    ]
-
-    output_file = './data/output_large.tbl' # output file name
-
-    write_all_lines(file_names1,file_names2, output_file)
-    print(f"Successfully wrote all lines from each file to {output_file}")
+    # 写入输出文件
+    with open('./data/tpch_q3.tbl', 'w') as f:
+        f.write('\n'.join(output))
 
 if __name__ == '__main__':
-    main()
+    generate_q3_input()
+    print("Q3 input data generated: tpch_q3.tbl")
