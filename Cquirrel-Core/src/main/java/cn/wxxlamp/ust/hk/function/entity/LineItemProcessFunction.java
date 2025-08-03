@@ -49,18 +49,7 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
 
         lastAliveOrderState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_lastAliveOrder",
-                        IntegerTypeInfo.of(new TypeHint<>() {})));
-
-        initState();
-    }
-
-    private void initState() throws IOException {
-        if (aliveLineItemsState.value() == null) {
-            aliveLineItemsState.update(new HashSet<>());
-        }
-        if (counterState.value() == null) {
-            counterState.update(0);
-        }
+                        TypeInformation.of(new TypeHint<>() {})));
     }
 
     @Override
@@ -168,5 +157,15 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
         return lineItem.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY) + "|" +
                 lineItem.getFieldValue(TpcHConstants.FIELD_O_ORDERDATE) + "|" +
                 lineItem.getFieldValue(TpcHConstants.FIELD_O_SHIPPRIORITY);
+    }
+
+
+    private void initState() throws IOException {
+        if (counterState.value() == null) {
+            counterState.update(0);
+        }
+        if (aliveLineItemsState.value() == null) {
+            aliveLineItemsState.update(new HashSet<>());
+        }
     }
 }

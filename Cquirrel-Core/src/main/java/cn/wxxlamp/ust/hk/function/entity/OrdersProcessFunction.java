@@ -7,6 +7,7 @@ import cn.wxxlamp.ust.hk.entity.Orders;
 import cn.wxxlamp.ust.hk.exception.DataProcessException;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -42,24 +43,12 @@ public class OrdersProcessFunction extends KeyedCoProcessFunction<String, Custom
 
         counterState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_counter",
-                        TypeInformation.of(new TypeHint<>() {
-                        })));
+                        IntegerTypeInfo.INT_TYPE_INFO));
 
         lastAliveCustomerState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_lastAliveCustomer",
                         TypeInformation.of(new TypeHint<>() {
                         })));
-
-        initState();
-    }
-
-    private void initState() throws IOException {
-        if (aliveOrdersState.value() == null) {
-            aliveOrdersState.update(new HashSet<>());
-        }
-        if (counterState.value() == null) {
-            counterState.update(0);
-        }
     }
 
     @Override
@@ -157,6 +146,16 @@ public class OrdersProcessFunction extends KeyedCoProcessFunction<String, Custom
         } catch (Exception e) {
             LOG.error("处理订单数据流异常", e);
             throw new DataProcessException("处理订单数据流异常", e);
+        }
+    }
+
+
+    private void initState() throws IOException {
+        if (counterState.value() == null) {
+            counterState.update(0);
+        }
+        if (aliveOrdersState.value() == null) {
+            aliveOrdersState.update(new HashSet<>());
         }
     }
 }

@@ -26,7 +26,7 @@ public class SplitStreamFunction extends ProcessFunction<String, BaseEntity> {
     public static final OutputTag<LineItem> LINEITEM_TAG = new OutputTag<LineItem>("lineitem") {};
 
     @Override
-    public void processElement(String value, Context ctx, Collector<BaseEntity> out) throws Exception {
+    public void processElement(String value, Context ctx, Collector<BaseEntity> out) {
         try {
             if (value == null || value.trim().isEmpty()) {
                 LOG.warn("忽略空数据行");
