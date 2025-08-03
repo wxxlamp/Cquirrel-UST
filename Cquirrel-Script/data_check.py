@@ -130,7 +130,6 @@ def load_tpch_q3_data(con, tbl_path):
                 con.execute(f"""
                     INSERT INTO {table_name} VALUES ({placeholders})
                 """, fields)
-                print(f"已插入 {table_name} 数据（行{line_num}）")
 
             # 处理DELETE操作
             elif operation == "DELETE":
@@ -145,7 +144,6 @@ def load_tpch_q3_data(con, tbl_path):
                     # 主键：l_orderkey + l_linenumber（第一个和第四个字段）
                     con.execute(f"DELETE FROM {table_name} WHERE l_orderkey = ? AND l_linenumber = ?",
                                 [fields[0], fields[3]])
-                print(f"已删除 {table_name} 数据（行{line_num}）")
 
             else:
                 print(f"警告：第{line_num}行不支持的操作类型 {operation}，跳过")
