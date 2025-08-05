@@ -1,6 +1,7 @@
 package cn.wxxlamp.ust.hk.function;
 
 import cn.wxxlamp.ust.hk.entity.*;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,15 +15,16 @@ import org.apache.flink.util.Collector;
  * @author wxx
  * @version 2025-08-03 17:18
  */
-public class AggregateProcessFunction extends KeyedProcessFunction<String, LineItem, String> {
+public class AggregateProcessFunction extends KeyedProcessFunction<String, LineItem, Result> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AggregateProcessFunction.class);
+
     private static final String FUNCTION_NAME = "AggregateProcessFunction";
 
     private ValueState<Result> resultState;
 
     @Override
-    public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
+    public void open(Configuration parameters) throws Exception {
         super.open(parameters);
 
         // 初始化状态
@@ -32,7 +34,7 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
     }
 
     @Override
-    public void processElement(LineItem lineItem, Context ctx, Collector<String> out) throws Exception {
+    public void processElement(LineItem lineItem, Context ctx, Collector<Result> out) {
         try {
             LOG.debug("处理聚合数据: {}", lineItem.getKeyValue());
 
@@ -59,7 +61,7 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
 
             resultState.update(result);
             LOG.info("聚合结果更新: {}", result);
-            out.collect(result.toString());
+            out.collect(result);
         } catch (Exception e) {
             LOG.error("聚合计算异常", e);
             throw new DataProcessException("聚合计算异常", e);

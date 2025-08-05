@@ -1,10 +1,13 @@
-package cn.wxxlamp.ust.hk.sink;
+package cn.wxxlamp.ust.hk.function.sink;
 
+import cn.wxxlamp.ust.hk.entity.Result;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -13,15 +16,13 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author wxx
- * @version 2025-08-04 00:02
- */
-public class RevenueAggregateSink extends RichSinkFunction<String> {
+public class RevenueAggregateSink extends RichSinkFunction<Result> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RevenueAggregateSink.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private Map<String, BigDecimal> aggregatedResults;
+    private PrintWriter fileWriter;
+    private String outputFilePath;
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -31,32 +32,25 @@ public class RevenueAggregateSink extends RichSinkFunction<String> {
     }
 
     @Override
-    public void invoke(String value, Context context) throws Exception {
-        if (value == null || value.trim().isEmpty()) {
+    public void invoke(Result result, Context context) {
+        if (result == null) {
             LOG.warn("忽略空的输出数据");
             return;
         }
 
-        String[] parts = value.split("\\|");
-        if (parts.length != 4) {
-            LOG.warn("无效的输出格式: {}", value);
-            return;
-        }
-
         try {
-            String orderKey = parts[0];
-            String orderDate = parts[1];
-            String shipPriority = parts[2];
-            BigDecimal revenue = new BigDecimal(parts[3]).setScale(4, RoundingMode.HALF_UP);
+            String orderKey = result.getOrderKey();
+            String orderDate = result.getOrderDate();
+            String shipPriority = result.getShipPriority();
+            BigDecimal revenue = BigDecimal.valueOf(result.getRevenue())
+                    .setScale(4, RoundingMode.HALF_UP);
 
             String groupKey = String.join("|", orderKey, orderDate, shipPriority);
 
-            // 修复：使用merge进行累加聚合（原代码是直接覆盖）
-            aggregatedResults.put(
-                    groupKey,
-                    revenue);
+            // 累加聚合结果
+            aggregatedResults.put(groupKey, revenue);
         } catch (NumberFormatException e) {
-            LOG.error("解析Revenue失败: {}", value, e);
+            LOG.error("解析Revenue失败", e);
         }
     }
 
@@ -84,7 +78,6 @@ public class RevenueAggregateSink extends RichSinkFunction<String> {
                 String orderDateStr = keys[1];
                 String shipPriority = keys[2];
 
-                // 使用线程安全的DateTimeFormatter
                 LocalDate localDate = LocalDate.parse(orderDateStr, DATE_FORMATTER);
 
                 String formattedOutput = String.format(
