@@ -16,6 +16,10 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @author wxx
+ * @version 2025-08-06
+ */
 public class RevenueAggregateSink extends RichSinkFunction<Result> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RevenueAggregateSink.class);
@@ -28,7 +32,6 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         aggregatedResults = new HashMap<>();
-        System.out.println("['l_orderkey', 'o_orderdate', 'o_shippriority', 'revenue']");
     }
 
     @Override
@@ -59,6 +62,7 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
         super.close();
         int successCount = 0;
 
+        LOG.info("task finish, total size is {}", aggregatedResults.size());
         for (Map.Entry<String, BigDecimal> entry : aggregatedResults.entrySet()) {
             String groupKey = entry.getKey();
             BigDecimal totalRevenue = entry.getValue();
@@ -80,6 +84,7 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
 
                 LocalDate localDate = LocalDate.parse(orderDateStr, DATE_FORMATTER);
 
+                System.out.println(orderDateStr);
                 String formattedOutput = String.format(
                         "(%s, datetime.date(%d, %d, %d), %s, Decimal('%s'))",
                         orderKey,

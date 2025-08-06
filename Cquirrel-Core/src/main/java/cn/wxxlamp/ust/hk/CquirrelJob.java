@@ -1,7 +1,7 @@
 package cn.wxxlamp.ust.hk;
 
 import cn.wxxlamp.ust.hk.entity.*;
-import cn.wxxlamp.ust.hk.function.AggregateProcessFunction;
+import cn.wxxlamp.ust.hk.function.aggregate.AggregateProcessFunction;
 import cn.wxxlamp.ust.hk.function.base.SplitStreamFunction;
 import cn.wxxlamp.ust.hk.function.entity.*;
 import cn.wxxlamp.ust.hk.function.groupby.CustomerGroupBy;

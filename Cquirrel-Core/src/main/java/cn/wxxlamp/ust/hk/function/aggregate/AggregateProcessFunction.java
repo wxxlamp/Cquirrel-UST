@@ -1,4 +1,4 @@
-package cn.wxxlamp.ust.hk.function;
+package cn.wxxlamp.ust.hk.function.aggregate;
 
 import cn.wxxlamp.ust.hk.entity.*;
 import org.apache.flink.configuration.Configuration;
