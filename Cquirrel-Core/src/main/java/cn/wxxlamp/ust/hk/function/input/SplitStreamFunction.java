@@ -1,4 +1,4 @@
-package cn.wxxlamp.ust.hk.function.base;
+package cn.wxxlamp.ust.hk.function.input;
 
 import cn.wxxlamp.ust.hk.constant.OperationType;
 import cn.wxxlamp.ust.hk.constant.TpcHConstants;
@@ -21,9 +21,12 @@ public class SplitStreamFunction extends ProcessFunction<String, BaseEntity> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitStreamFunction.class);
 
     // 定义输出标签
-    public static final OutputTag<Customer> CUSTOMER_TAG = new OutputTag<Customer>("customer") {};
-    public static final OutputTag<Orders> ORDERS_TAG = new OutputTag<Orders>("orders") {};
-    public static final OutputTag<LineItem> LINEITEM_TAG = new OutputTag<LineItem>("lineitem") {};
+    public static final OutputTag<Customer> CUSTOMER_TAG = new OutputTag<>("customer") {
+    };
+    public static final OutputTag<Orders> ORDERS_TAG = new OutputTag<>("orders") {
+    };
+    public static final OutputTag<LineItem> LINEITEM_TAG = new OutputTag<>("lineitem") {
+    };
 
     @Override
     public void processElement(String value, Context ctx, Collector<BaseEntity> out) {

@@ -1,12 +1,14 @@
 package cn.wxxlamp.ust.hk;
 
+import cn.wxxlamp.ust.hk.constant.FilePathConstants;
 import cn.wxxlamp.ust.hk.entity.*;
 import cn.wxxlamp.ust.hk.function.aggregate.AggregateProcessFunction;
-import cn.wxxlamp.ust.hk.function.base.SplitStreamFunction;
+import cn.wxxlamp.ust.hk.function.input.SplitStreamFunction;
 import cn.wxxlamp.ust.hk.function.entity.*;
 import cn.wxxlamp.ust.hk.function.groupby.CustomerGroupBy;
 import cn.wxxlamp.ust.hk.function.groupby.LineItemGroupBy;
 import cn.wxxlamp.ust.hk.function.groupby.OrdersGroupBy;
+import cn.wxxlamp.ust.hk.function.sink.AsyncFileWriterHandler;
 import cn.wxxlamp.ust.hk.function.sink.RevenueAggregateSink;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
@@ -32,7 +34,7 @@ public class CquirrelJob {
 
 
         FileSource<String> source = FileSource
-                .forRecordStreamFormat(new TextLineInputFormat(), new Path("/Users/wxx/Documents/hkust/ip/Cquirrel-UST/Cquirrel-Script/data/tpch_q3.tbl"))
+                .forRecordStreamFormat(new TextLineInputFormat(), new Path(FilePathConstants.TBL_FILE_PATH))
                 .build();
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), "File Source");
 
@@ -74,12 +76,13 @@ public class CquirrelJob {
                 .process(new AggregateProcessFunction())
                 .name("Q3 Aggregator");
 
-        // 输出结果
+        // print the results to file
         resultStream.addSink(new RevenueAggregateSink())
                 .name("Revenue Aggregate Sink");
 
         // 执行作业
         env.execute("TPC-H Q3 Query Processing");
-        LOGGER.info("TPC-H Q3查询处理程序执行完成");
+        LOGGER.info("TPC-H Q3 query task finished.");
+        AsyncFileWriterHandler.getAsyncFileWriter().stop();
     }
 }

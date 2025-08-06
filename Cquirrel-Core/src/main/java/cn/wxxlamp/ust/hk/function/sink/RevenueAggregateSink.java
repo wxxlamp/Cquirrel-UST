@@ -6,32 +6,29 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * process the final revenue group by keys
  * @author wxx
  * @version 2025-08-06
  */
 public class RevenueAggregateSink extends RichSinkFunction<Result> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RevenueAggregateSink.class);
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private Map<String, BigDecimal> aggregatedResults;
-    private PrintWriter fileWriter;
-    private String outputFilePath;
+
+    private AsyncFileWriter asyncFileWriter;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         aggregatedResults = new HashMap<>();
+        asyncFileWriter = AsyncFileWriterHandler.getAsyncFileWriter();
     }
 
     @Override
@@ -62,6 +59,8 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
         super.close();
         int successCount = 0;
 
+        asyncFileWriter.start();
+
         LOG.info("task finish, total size is {}", aggregatedResults.size());
         for (Map.Entry<String, BigDecimal> entry : aggregatedResults.entrySet()) {
             String groupKey = entry.getKey();
@@ -72,7 +71,7 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
             }
 
             try {
-                String[] keys = groupKey.split("\\|", 3); // 限制分割为3部分
+                String[] keys = groupKey.split("\\|", 3);
                 if (keys.length < 3) {
                     LOG.warn("分组键格式错误: {}", groupKey);
                     continue;
@@ -82,26 +81,22 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
                 String orderDateStr = keys[1];
                 String shipPriority = keys[2];
 
-                LocalDate localDate = LocalDate.parse(orderDateStr, DATE_FORMATTER);
-
-                System.out.println(orderDateStr);
+                // 格式化输出行（修正原格式错误，去掉多余括号）
                 String formattedOutput = String.format(
-                        "(%s, datetime.date(%d, %d, %d), %s, Decimal('%s'))",
+                        "%s, %s, %s, %s",
                         orderKey,
-                        localDate.getYear(),
-                        localDate.getMonthValue(),
-                        localDate.getDayOfMonth(),
+                        orderDateStr,
                         shipPriority,
                         totalRevenue.setScale(4, RoundingMode.HALF_UP).toPlainString()
                 );
-                System.out.println(formattedOutput);
+                // 放入队列异步写入
+                asyncFileWriter.enqueue(formattedOutput);
                 successCount++;
-            } catch (DateTimeParseException e) {
-                LOG.error("日期解析失败: {}", groupKey, e);
             } catch (Exception e) {
                 LOG.error("处理记录失败 (key: {}): {}", groupKey, e.getMessage(), e);
             }
         }
+
         LOG.info("聚合结果输出完成，共{}条有效记录", successCount);
     }
 }
