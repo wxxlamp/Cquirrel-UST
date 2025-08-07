@@ -10,13 +10,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * print the results to file using async thread
+ * Asynchronously writes results to a file using a background thread.
+ * This class handles the file writing in a non-blocking manner by using a queue
+ * to buffer data before writing to disk.
+ *
  * @author wxx
  * @version 2025-08-06 22:22
  */
 public class AsyncFileWriter implements Serializable {
 
-    @Serial
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncFileWriter.class);
@@ -26,11 +28,11 @@ public class AsyncFileWriter implements Serializable {
     private Thread writerThread;
     private PrintWriter printWriter;
 
-    // print header
+    // Header for the output file
     private static final String HEADER = "l_orderkey, o_orderdate, o_shippriority, revenue";
 
     public AsyncFileWriter() {
-        this.dataQueue = new LinkedBlockingQueue<>(10000); // 队列容量限制
+        this.dataQueue = new LinkedBlockingQueue<>(10000); // Queue capacity limit
         this.outputFilePath = FilePathConstants.OUTPUT_FILE_PATH;
         this.isRunning = new AtomicBoolean(false);
     }
@@ -40,45 +42,49 @@ public class AsyncFileWriter implements Serializable {
     }
 
     /**
-     * 启动异步写入线程
+     * Starts the asynchronous writing thread.
+     *
+     * @throws IOException if there's an error initializing the file writer
      */
     public synchronized void start() throws IOException {
         if (isRunning.get()) {
-            LOG.warn("异步写入线程已启动");
+            LOG.warn("Async writer thread already started");
             return;
         }
 
-        // 初始化文件写入器（覆盖模式）
+        // Initialize the file writer (overwrite mode)
         printWriter = new PrintWriter(new FileWriter(outputFilePath, false));
-        // 写入表头
+        // Write header
         printWriter.println(HEADER);
         printWriter.flush();
 
         isRunning.set(true);
         writerThread = new Thread(this::writeLoop, "Async-File-Writer");
         writerThread.start();
-        LOG.info("异步文件写入线程已启动，输出路径: {}", outputFilePath);
+        LOG.info("Async file writer thread started, output path: {}", outputFilePath);
     }
 
     /**
-     * 向队列添加数据
+     * Enqueues data to be written to the file.
+     *
+     * @param data The data string to be written
      */
     public void enqueue(String data) {
         if (!isRunning.get()) {
-            LOG.error("异步写入线程未启动，无法添加数据");
+            LOG.error("Async writer thread not started, cannot add data");
             return;
         }
 
         try {
-            dataQueue.put(data); // 队列满时会阻塞
+            dataQueue.put(data); // Will block if queue is full
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOG.error("添加数据到队列被中断", e);
+            LOG.error("Adding data to queue was interrupted", e);
         }
     }
 
     /**
-     * 停止异步写入线程（确保所有数据写入完成）
+     * Stops the asynchronous writing thread (ensuring all data is written).
      */
     public void stop() {
         if (!isRunning.get()) {
@@ -86,51 +92,52 @@ public class AsyncFileWriter implements Serializable {
         }
 
         isRunning.set(false);
-        // 中断写入线程
+        // Interrupt the writer thread
         if (writerThread != null) {
             writerThread.interrupt();
             try {
-                writerThread.join(5000); // 等待最多5秒
+                writerThread.join(5000); // Wait up to 5 seconds
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LOG.error("等待写入线程结束被中断", e);
+                LOG.error("Waiting for writer thread to finish was interrupted", e);
             }
         }
 
-        // 关闭文件
+        // Close the file
         if (printWriter != null) {
             printWriter.flush();
             printWriter.close();
         }
-        LOG.info("异步文件写入线程已停止，共写入 {} 条数据", dataQueue.size() - dataQueue.remainingCapacity());
+        LOG.info("Async file writer thread stopped, {} data records written",
+                dataQueue.size() - dataQueue.remainingCapacity());
     }
 
     /**
-     * 循环从队列取数据并写入文件
+     * Continuously retrieves data from the queue and writes it to the file.
      */
     private void writeLoop() {
         while (isRunning.get() || !dataQueue.isEmpty()) {
             try {
-                String data = dataQueue.poll(); // 非阻塞获取
+                String data = dataQueue.poll(); // Non-blocking retrieval
                 if (data != null) {
                     printWriter.println(data);
-                    // 每100条刷新一次，平衡性能和实时性
+                    // Flush every 100 records to balance performance and real-time behavior
                     if (dataQueue.size() % 100 == 0) {
                         printWriter.flush();
                     }
                 } else {
-                    // 队列空时短暂休眠，减少CPU占用
+                    // Briefly sleep when queue is empty to reduce CPU usage
                     Thread.sleep(10);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LOG.warn("写入线程被中断");
+                LOG.warn("Writer thread was interrupted");
                 break;
             } catch (Exception e) {
-                LOG.error("写入文件失败", e);
+                LOG.error("Failed to write to file", e);
             }
         }
-        // 最后强制刷新
+        // Final flush
         if (printWriter != null) {
             printWriter.flush();
         }
