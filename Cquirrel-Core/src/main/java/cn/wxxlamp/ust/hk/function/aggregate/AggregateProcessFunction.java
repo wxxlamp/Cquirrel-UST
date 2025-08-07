@@ -12,6 +12,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 
+import java.math.BigDecimal;
+
 /**
  * Process function for aggregating line item data to calculate revenue.
  * This function maintains state for each key and updates the aggregated result
@@ -51,7 +53,7 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
 
             // Step 2: Get current result and calculate revenue for the line item
             Result result = resultState.value();
-            double revenue = lineItem.calculateRevenue();
+            BigDecimal revenue = lineItem.calculateRevenue();
 
             // Step 3: Update the aggregated result based on operation type
             switch (lineItem.getOperationType()) {

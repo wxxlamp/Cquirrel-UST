@@ -2,6 +2,8 @@ package cn.wxxlamp.ust.hk.entity;
 
 import cn.wxxlamp.ust.hk.constant.TpcHConstants;
 
+import java.math.BigDecimal;
+
 /**
  * Result class representing the final output of the TPC-H Q3 query.
  * This class holds the aggregated results including order key, order date,
@@ -21,7 +23,7 @@ public class Result {
     private String shipPriority;
     
     /** The calculated revenue for this result */
-    private double revenue;
+    private BigDecimal revenue;
 
     /**
      * Constructor that initializes the result from a base entity
@@ -34,7 +36,7 @@ public class Result {
         this.shipPriority = entity.getFieldValue(TpcHConstants.FIELD_O_SHIPPRIORITY);
         
         // Step 2: Initialize revenue to zero
-        this.revenue = 0.0;
+        this.revenue = BigDecimal.ZERO;
     }
 
     /**
@@ -89,7 +91,7 @@ public class Result {
      * Get the revenue
      * @return The revenue
      */
-    public double getRevenue() {
+    public BigDecimal getRevenue() {
         return revenue;
     }
 
@@ -97,16 +99,16 @@ public class Result {
      * Add an amount to the revenue
      * @param amount The amount to add
      */
-    public void addRevenue(double amount) {
-        this.revenue += amount;
+    public void addRevenue(BigDecimal amount) {
+        this.revenue = this.revenue.add(amount);
     }
 
     /**
      * Subtract an amount from the revenue
      * @param amount The amount to subtract
      */
-    public void subtractRevenue(double amount) {
-        this.revenue -= amount;
+    public void subtractRevenue(BigDecimal amount) {
+        this.revenue = this.revenue.subtract(amount);
     }
 
     @Override

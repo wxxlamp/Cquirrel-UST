@@ -1,7 +1,6 @@
 package cn.wxxlamp.ust.hk.function.sink;
 
 import cn.wxxlamp.ust.hk.entity.Result;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
@@ -51,7 +50,7 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
             String orderKey = result.getOrderKey();
             String orderDate = result.getOrderDate();
             String shipPriority = result.getShipPriority();
-            BigDecimal revenue = BigDecimal.valueOf(result.getRevenue())
+            BigDecimal revenue = result.getRevenue()
                     .setScale(4, RoundingMode.HALF_UP);
 
             // Step 3: Create group key and store result

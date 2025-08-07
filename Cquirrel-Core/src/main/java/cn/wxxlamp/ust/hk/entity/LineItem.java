@@ -3,6 +3,7 @@ package cn.wxxlamp.ust.hk.entity;
 import cn.wxxlamp.ust.hk.constant.TpcHConstants;
 import cn.wxxlamp.ust.hk.exception.DataFormatException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -68,16 +69,16 @@ public class LineItem extends BaseEntity {
      * Calculate the revenue for this line item
      * @return The calculated revenue (extended price * (1 - discount))
      */
-    public double calculateRevenue() {
+    public BigDecimal calculateRevenue() {
         try {
             // Step 1: Parse extended price and discount values
-            double extendedPrice = Double.parseDouble(
+            BigDecimal extendedPrice = new BigDecimal(
                     getFieldValue(TpcHConstants.FIELD_L_EXTENDEDPRICE));
-            double discount = Double.parseDouble(
+            BigDecimal discount = new BigDecimal(
                     getFieldValue(TpcHConstants.FIELD_L_DISCOUNT));
             
             // Step 2: Calculate revenue using the formula: extendedPrice * (1 - discount)
-            return extendedPrice * (1 - discount);
+            return extendedPrice.multiply(BigDecimal.ONE.subtract(discount));
         } catch (Exception e) {
             throw new DataFormatException("Failed to calculate revenue", e);
         }
