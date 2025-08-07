@@ -14,13 +14,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Process function for splitting the input data stream into separate streams for each entity type.
+ * This function parses input strings and routes them to the appropriate output tags based on
+ * table name and operation type.
+ *
  * @author wxx
  * @version 2025-08-03 17:20
  */
 public class SplitStreamFunction extends ProcessFunction<String, BaseEntity> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitStreamFunction.class);
 
-    // 定义输出标签
+    // Define output tags for each entity type
     public static final OutputTag<Customer> CUSTOMER_TAG = new OutputTag<>("customer") {
     };
     public static final OutputTag<Orders> ORDERS_TAG = new OutputTag<>("orders") {
@@ -31,36 +35,39 @@ public class SplitStreamFunction extends ProcessFunction<String, BaseEntity> {
     @Override
     public void processElement(String value, Context ctx, Collector<BaseEntity> out) {
         try {
+            // Step 1: Validate input
             if (value == null || value.trim().isEmpty()) {
-                LOG.warn("忽略空数据行");
+                LOG.warn("Ignoring empty data row");
                 return;
             }
 
+            // Step 2: Split the input string into fields
             String[] values = value.split("\\|");
             if (values.length < 2) {
-                throw new DataFormatException("数据格式错误，字段数量不足: " + value);
+                throw new DataFormatException("Data format error, insufficient fields: " + value);
             }
 
+            // Step 3: Extract operation and table name
             String operation = values[0];
             String tableName = values[1];
 
-            // 创建对应的实体对象
+            // Step 4: Create the appropriate entity object
             BaseEntity entity = createEntity(tableName, values);
             if (entity == null) {
-                LOG.warn("不支持的表名: {}", tableName);
+                LOG.warn("Unsupported table name: {}", tableName);
                 return;
             }
 
-            // 设置操作类型
+            // Step 5: Set operation type based on input
             if (TpcHConstants.OPERATION_INSERT.equalsIgnoreCase(operation)) {
                 entity.setOperationType(OperationType.INSERT);
             } else if (TpcHConstants.OPERATION_DELETE.equalsIgnoreCase(operation)) {
                 entity.setOperationType(OperationType.DELETE);
             } else {
-                throw new DataFormatException("不支持的操作类型: " + operation);
+                throw new DataFormatException("Unsupported operation type: " + operation);
             }
 
-            // 输出到对应的侧输出流
+            // Step 6: Route to appropriate output stream based on entity type
             if (entity instanceof Customer) {
                 ctx.output(CUSTOMER_TAG, (Customer) entity);
             } else if (entity instanceof Orders) {
@@ -69,29 +76,30 @@ public class SplitStreamFunction extends ProcessFunction<String, BaseEntity> {
                 ctx.output(LINEITEM_TAG, (LineItem) entity);
             }
 
-            LOG.debug("拆分数据: 表={}, 操作={}", tableName, operation);
+            LOG.debug("Split data: Table={}, Operation={}", tableName, operation);
         } catch (Exception e) {
-            LOG.error("数据拆分异常: " + value, e);
-            throw new DataFormatException("数据拆分异常", e);
+            LOG.error("Data splitting error: " + value, e);
+            throw new DataFormatException("Data splitting error", e);
         }
     }
 
     /**
-     * 根据表名创建对应的实体对象
+     * Create an entity object based on the table name
+     * @param tableName The name of the table
+     * @param values The array of field values
+     * @return The created entity object or null if table name is not supported
      */
     private BaseEntity createEntity(String tableName, String[] values) {
+        // Step 1: Prepare entity fields by removing the table name
         String[] entityFields = new String[values.length - 1];
         System.arraycopy(values, 1, entityFields, 0, entityFields.length);
 
-        switch (tableName) {
-            case TpcHConstants.TABLE_CUSTOMER:
-                return new Customer(entityFields);
-            case TpcHConstants.TABLE_ORDERS:
-                return new Orders(entityFields);
-            case TpcHConstants.TABLE_LINEITEM:
-                return new LineItem(entityFields);
-            default:
-                return null;
-        }
+        // Step 2: Create entity based on table name
+        return switch (tableName) {
+            case TpcHConstants.TABLE_CUSTOMER -> new Customer(entityFields);
+            case TpcHConstants.TABLE_ORDERS -> new Orders(entityFields);
+            case TpcHConstants.TABLE_LINEITEM -> new LineItem(entityFields);
+            default -> null;
+        };
     }
 }

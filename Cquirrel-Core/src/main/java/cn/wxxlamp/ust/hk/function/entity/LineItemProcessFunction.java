@@ -21,6 +21,10 @@ import java.io.IOException;
 import java.util.HashSet;
 
 /**
+ * Process function for handling the join between Orders and LineItem entities.
+ * This function manages state for active orders and line items, and creates associations
+ * between them based on key relationships for aggregation.
+ *
  * @author wxx
  * @version 2025-08-03 17:12
  */
@@ -29,41 +33,51 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
     private static final Logger LOG = LoggerFactory.getLogger(LineItemProcessFunction.class);
     private static final String FUNCTION_NAME = "LineItemProcessFunction";
 
+    /** State to store active line items */
     private ValueState<HashSet<LineItem>> aliveLineItemsState;
+    
+    /** State to count active orders */
     private ValueState<Integer> counterState;
+    
+    /** State to store the last active order */
     private ValueState<Orders> lastAliveOrderState;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
 
-        // 初始化状态
+        // Step 1: Initialize state for active line items
         aliveLineItemsState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_aliveLineItems",
-                        TypeInformation.of(new TypeHint<>() {
+                        TypeInformation.of(new TypeHint<HashSet<LineItem>>() {
                         })));
 
+        // Step 2: Initialize counter state for active orders
         counterState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_counter",
-                        IntegerTypeInfo.of(new TypeHint<>() {})));
+                        IntegerTypeInfo.of(new TypeHint<Integer>() {})));
 
+        // Step 3: Initialize state for the last active order
         lastAliveOrderState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_lastAliveOrder",
-                        TypeInformation.of(new TypeHint<>() {})));
+                        TypeInformation.of(new TypeHint<Orders>() {})));
     }
 
     @Override
     public void processElement1(Orders order, Context ctx, Collector<LineItem> out) throws Exception {
         try {
+            // Step 1: Initialize state if needed
             initState();
-            LOG.debug("处理订单数据流: {}", order.getFieldValue(TpcHConstants.FIELD_O_ORDERKEY));
+            LOG.debug("Processing orders stream: {}", order.getFieldValue(TpcHConstants.FIELD_O_ORDERKEY));
 
+            // Step 2: Process order based on operation type
             switch (order.getOperationType()) {
                 case SET_ALIVE_RIGHT:
+                    // Step 2a: Update the last alive order and increment counter
                     lastAliveOrderState.update(order);
                     counterState.update(counterState.value() + 1);
 
-                    // 与所有存活的订单项关联
+                    // Step 2b: Associate with all active line items
                     for (BaseEntity lineItem : aliveLineItemsState.value()) {
                         LineItem newLineItem = new LineItem();
                         newLineItem.mergeFields(lineItem);
@@ -75,10 +89,11 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
                     break;
 
                 case SET_DEAD_RIGHT:
+                    // Step 2c: Clear last alive order and decrement counter
                     lastAliveOrderState.update(null);
                     counterState.update(counterState.value() - 1);
 
-                    // 与所有存活的订单项解除关联
+                    // Step 2d: Disassociate from all active line items
                     for (BaseEntity lineItem : aliveLineItemsState.value()) {
                         LineItem newLineItem = new LineItem();
                         newLineItem.mergeFields(lineItem);
@@ -90,32 +105,35 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
                     break;
 
                 default:
-                    LOG.warn("不支持的订单操作类型: {}", order.getOperationType());
+                    LOG.warn("Unsupported order operation type: {}", order.getOperationType());
             }
         } catch (Exception e) {
-            LOG.error("处理订单数据流异常", e);
-            throw new DataProcessException("处理订单数据流异常", e);
+            LOG.error("Error processing orders stream", e);
+            throw new DataProcessException("Error processing orders stream", e);
         }
     }
 
     @Override
     public void processElement2(LineItem item, Context ctx, Collector<LineItem> out) throws Exception {
         try {
+            // Step 1: Initialize state if needed
             initState();
-            LOG.debug("处理订单项数据流: {}", item.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY));
+            LOG.debug("Processing line item stream: {}", item.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY));
 
-            // 过滤发货日期
+            // Step 2: Filter line items by ship date threshold
             if (!item.isShipDateAfterThreshold()) {
-                LOG.debug("过滤发货日期不符合条件的订单项: {}", item.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY));
+                LOG.debug("Filtering line item with ship date before threshold: {}", item.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY));
                 return;
             }
 
+            // Step 3: Process line items based on operation type
             switch (item.getOperationType()) {
                 case INSERT:
+                    // Step 3a: Add line item to active line items set
                     aliveLineItemsState.value().add(item);
                     aliveLineItemsState.update(aliveLineItemsState.value());
 
-                    // 如果有存活的订单，建立关联
+                    // Step 3b: If there's an active order, establish association
                     if (counterState.value() > 0 && lastAliveOrderState.value() != null) {
                         LineItem newLineItem = new LineItem();
                         newLineItem.mergeFields(item);
@@ -127,7 +145,7 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
                     break;
 
                 case DELETE:
-                    // 如果有存活的订单，解除关联
+                    // Step 3c: If there's an active order, disassociate
                     if (counterState.value() > 0 && lastAliveOrderState.value() != null) {
                         LineItem newLineItem = new LineItem();
                         newLineItem.mergeFields(item);
@@ -137,21 +155,24 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
                         out.collect(newLineItem);
                     }
 
+                    // Step 3d: Remove line item from active line items set
                     aliveLineItemsState.value().remove(item);
                     aliveLineItemsState.update(aliveLineItemsState.value());
                     break;
 
                 default:
-                    LOG.warn("不支持的订单项操作类型: {}", item.getOperationType());
+                    LOG.warn("Unsupported line item operation type: {}", item.getOperationType());
             }
         } catch (Exception e) {
-            LOG.error("处理订单项数据流异常", e);
-            throw new DataProcessException("处理订单项数据流异常", e);
+            LOG.error("Error processing line item stream", e);
+            throw new DataProcessException("Error processing line item stream", e);
         }
     }
 
     /**
-     * 生成分组键 (l_orderkey, o_orderdate, o_shippriority)
+     * Generate a grouping key (l_orderkey, o_orderdate, o_shippriority)
+     * @param lineItem The line item to generate a key for
+     * @return The generated grouping key
      */
     private String generateGroupKey(LineItem lineItem) {
         return lineItem.getFieldValue(TpcHConstants.FIELD_L_ORDERKEY) + "|" +
@@ -159,7 +180,10 @@ public class LineItemProcessFunction extends KeyedCoProcessFunction<String, Orde
                 lineItem.getFieldValue(TpcHConstants.FIELD_O_SHIPPRIORITY);
     }
 
-
+    /**
+     * Initialize state values if they are null
+     * @throws IOException if there's an error initializing state
+     */
     private void initState() throws IOException {
         if (counterState.value() == null) {
             counterState.update(0);

@@ -11,7 +11,12 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
+
 /**
+ * Process function for aggregating line item data to calculate revenue.
+ * This function maintains state for each key and updates the aggregated result
+ * based on incoming line items with AGGREGATE or AGGREGATE_DELETE operations.
+ *
  * @author wxx
  * @version 2025-08-03 17:18
  */
@@ -21,13 +26,14 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
 
     private static final String FUNCTION_NAME = "AggregateProcessFunction";
 
+    /** State to store the aggregated result for each key */
     private ValueState<Result> resultState;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
 
-        // 初始化状态
+        // Step 1: Initialize the state for storing aggregated results
         resultState = getRuntimeContext().getState(
                 new ValueStateDescriptor<>(FUNCTION_NAME + "_result",
                         TypeInformation.of(Result.class)));
@@ -36,17 +42,18 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
     @Override
     public void processElement(LineItem lineItem, Context ctx, Collector<Result> out) {
         try {
-            LOG.debug("处理聚合数据: {}", lineItem.getKeyValue());
+            LOG.debug("Processing aggregation data: {}", lineItem.getKeyValue());
 
-            // 初始化结果状态
+            // Step 1: Initialize result state if it doesn't exist
             if (resultState.value() == null) {
                 resultState.update(new Result(lineItem));
             }
 
+            // Step 2: Get current result and calculate revenue for the line item
             Result result = resultState.value();
             double revenue = lineItem.calculateRevenue();
 
-            // 根据操作类型更新聚合结果
+            // Step 3: Update the aggregated result based on operation type
             switch (lineItem.getOperationType()) {
                 case AGGREGATE:
                     result.addRevenue(revenue);
@@ -55,16 +62,17 @@ public class AggregateProcessFunction extends KeyedProcessFunction<String, LineI
                     result.subtractRevenue(revenue);
                     break;
                 default:
-                    LOG.warn("不支持的聚合操作类型: {}", lineItem.getOperationType());
+                    LOG.warn("Unsupported aggregation operation type: {}", lineItem.getOperationType());
                     return;
             }
 
+            // Step 4: Update state and emit result
             resultState.update(result);
-            LOG.info("聚合结果更新: {}", result);
+            LOG.info("Aggregation result updated: {}", result);
             out.collect(result);
         } catch (Exception e) {
-            LOG.error("聚合计算异常", e);
-            throw new DataProcessException("聚合计算异常", e);
+            LOG.error("Aggregation calculation error", e);
+            throw new DataProcessException("Aggregation calculation error", e);
         }
     }
 }
