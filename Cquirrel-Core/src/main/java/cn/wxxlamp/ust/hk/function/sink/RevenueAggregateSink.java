@@ -1,6 +1,7 @@
 package cn.wxxlamp.ust.hk.function.sink;
 
 import cn.wxxlamp.ust.hk.entity.Result;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
@@ -26,9 +27,6 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
 
     /** Map to store aggregated results by group key */
     private Map<String, BigDecimal> aggregatedResults;
-
-    /** Output file path (not currently used) */
-    private String outputFilePath;
 
     private AsyncFileWriter asyncFileWriter;
 
@@ -99,7 +97,6 @@ public class RevenueAggregateSink extends RichSinkFunction<Result> {
                 String shipPriority = keys[2];
 
                 // Step 5: Format and output result
-                System.out.println(orderDateStr);
                 String formattedOutput = String.format(
                         "%s, %s, %s, %s",
                         orderKey,

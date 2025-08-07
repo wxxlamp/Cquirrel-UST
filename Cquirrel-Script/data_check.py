@@ -6,37 +6,37 @@ from decimal import Decimal, ROUND_HALF_UP
 
 def process_tpch_q3(tbl_path, query_path, output_csv_path):
     """
-    读取tpch_q3.tbl执行查询，与output.csv对比结果
-    :param tbl_path: tpch_q3.tbl文件路径
-    :param query_path: query.sql文件路径
-    :param output_csv_path: 输出结果CSV文件路径
+    Read tpch_q3.tbl to execute the query and compare the results with output.csv
+    :param tbl_path: Path to the tpch_q3.tbl file
+    :param query_path: Path to the query.sql file
+    :param output_csv_path: Path to the output CSV file
     """
-    # 连接DuckDB（内存模式）
+    # Connect to DuckDB (in-memory mode)
     con = duckdb.connect(database=':memory:')
 
     try:
-        # 创建表结构并加载数据
+        # Create table structure and load data
         create_tables(con)
         load_tpch_q3_data(con, tbl_path)
 
-        # 执行查询并获取结果
+        # Execute the query and get the results
         query_result = execute_query(con, query_path)
 
-        # 读取output.csv结果
+        # Read the results from output.csv
         csv_result = read_output_csv(output_csv_path)
 
-        # 比较结果
+        # Compare the results
         compare_results(query_result, csv_result)
 
     except Exception as e:
-        print(f"执行出错: {e}")
+        print(f"Execution error: {e}")
     finally:
         con.close()
 
 
 def create_tables(con):
-    """创建TPCH表结构"""
-    # 客户表
+    """Create the TPCH table structure"""
+    # Customer table
     con.execute("""
                 CREATE TABLE customer
                 (
@@ -51,7 +51,7 @@ def create_tables(con):
                 )
                 """)
 
-    # 订单表
+    # Orders table
     con.execute("""
                 CREATE TABLE orders
                 (
@@ -67,7 +67,7 @@ def create_tables(con):
                 )
                 """)
 
-    # 订单项表
+    # Lineitem table
     con.execute("""
                 CREATE TABLE lineitem
                 (
@@ -89,13 +89,13 @@ def create_tables(con):
                     l_comment       VARCHAR
                 )
                 """)
-    print("表结构创建完成")
+    print("Table structure creation completed")
 
 
 def load_tpch_q3_data(con, tbl_path):
-    """读取tpch_q3.tbl并处理INSERT/DELETE操作"""
+    """Read tpch_q3.tbl and process INSERT/DELETE operations"""
     if not os.path.exists(tbl_path):
-        raise FileNotFoundError(f"文件 {tbl_path} 不存在")
+        raise FileNotFoundError(f"File {tbl_path} does not exist")
 
     table_field_counts = {
         "customer": 8,
@@ -111,20 +111,20 @@ def load_tpch_q3_data(con, tbl_path):
 
             parts = line.split('|')
             if len(parts) < 3:
-                print(f"警告：第{line_num}行格式错误，跳过 - {line}")
+                print(f"Warning: Line {line_num} has incorrect format, skipping - {line}")
                 continue
 
             operation = parts[0].upper()
             table_name = parts[1].lower()
 
             if table_name not in table_field_counts:
-                print(f"警告：第{line_num}行不支持的表名 {table_name}，跳过")
+                print(f"Warning: Line {line_num} has unsupported table name {table_name}, skipping")
                 continue
 
             fields = parts[2:]
             if len(fields) != table_field_counts[table_name]:
                 print(
-                    f"警告：第{line_num}行字段数量不匹配，跳过 - 预期{table_field_counts[table_name]}个，实际{len(fields)}个")
+                    f"Warning: Line {line_num} has mismatched field count, skipping - Expected {table_field_counts[table_name]}, got {len(fields)}")
                 continue
 
             if operation == "INSERT":
@@ -133,7 +133,7 @@ def load_tpch_q3_data(con, tbl_path):
                     INSERT INTO {table_name} VALUES ({placeholders})
                 """, fields)
 
-            # 处理DELETE操作
+            # Process DELETE operations
             elif operation == "DELETE":
                 if table_name == "customer":
                     con.execute(f"DELETE FROM {table_name} WHERE c_custkey = ?", [fields[0]])
@@ -143,51 +143,51 @@ def load_tpch_q3_data(con, tbl_path):
                     con.execute(f"DELETE FROM {table_name} WHERE l_orderkey = ? AND l_linenumber = ?",
                                 [fields[0], fields[3]])
             else:
-                print(f"警告：第{line_num}行不支持的操作类型 {operation}，跳过")
+                print(f"Warning: Line {line_num} has unsupported operation type {operation}, skipping")
 
 
 def execute_query(con, query_path):
-    """执行查询并返回格式化结果"""
+    """Execute the query and return formatted results"""
     if not os.path.exists(query_path):
-        raise FileNotFoundError(f"查询文件 {query_path} 不存在")
+        raise FileNotFoundError(f"Query file {query_path} does not exist")
 
     with open(query_path, 'r') as f:
         query = f.read()
 
-    print("\n执行查询结果：")
+    print("\nExecution results:")
     result = con.execute(query).fetchall()
 
-    # 格式化结果：(l_orderkey, o_orderdate, o_shippriority, revenue)
-    # 日期转为字符串，revenue保留4位小数
+    # Format the results: (l_orderkey, o_orderdate, o_shippriority, revenue)
+    # Convert date to string and format revenue to 4 decimal places
     formatted = []
     for row in result:
         orderkey = row[0]
-        orderdate = str(row[1])  # 转为'YYYY-MM-DD'字符串
+        orderdate = str(row[1])  # Convert to 'YYYY-MM-DD' string
         shippriority = row[2]
         revenue = Decimal(str(row[3])).quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
         formatted.append((orderkey, orderdate, shippriority, revenue))
 
-    return set(formatted)  # 用集合实现无序比较
+    return set(formatted)  # Use a set for unordered comparison
 
 
 def read_output_csv(csv_path):
-    """读取output.csv并返回格式化结果"""
+    """Read output.csv and return formatted results"""
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"输出文件 {csv_path} 不存在")
+        raise FileNotFoundError(f"Output file {csv_path} does not exist")
 
     formatted = []
     with open(csv_path, 'r') as f:
         reader = csv.reader(f)
-        next(reader)  # 跳过表头
+        next(reader)  # Skip header
 
-        for line_num, row in enumerate(reader, 2):  # 行号从2开始（表头为1）
+        for line_num, row in enumerate(reader, 2):  # Line numbers start from 2 (header is 1)
             if not row:
                 continue
 
-            # 处理可能的空格（如"48899, 1995-01-19, 0, 13272.0672"）
+            # Handle possible spaces (e.g., "48899, 1995-01-19, 0, 13272.0672")
             cleaned = [col.strip() for col in row]
             if len(cleaned) != 4:
-                print(f"警告：CSV第{line_num}行格式错误，跳过 - {row}")
+                print(f"Warning: Line {line_num} in CSV has incorrect format, skipping - {row}")
                 continue
 
             try:
@@ -197,42 +197,42 @@ def read_output_csv(csv_path):
                 revenue = Decimal(cleaned[3]).quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 formatted.append((orderkey, orderdate, shippriority, revenue))
             except (ValueError, Decimal.InvalidOperation) as e:
-                print(f"警告：CSV第{line_num}行数据转换失败，跳过 - {row}，错误：{e}")
+                print(f"Warning: Data conversion failed for line {line_num} in CSV, skipping - {row}, Error: {e}")
 
     return set(formatted)
 
 
 def compare_results(query_set, csv_set):
-    """比较查询结果和CSV结果"""
-    # 计算差异
+    """Compare query results with CSV results"""
+    # Calculate differences
     only_query = query_set - csv_set
     only_csv = csv_set - query_set
 
-    # 输出比较结果
-    print("\n===== 结果比较 =====")
-    print(f"查询结果条数: {len(query_set)}")
-    print(f"CSV文件条数: {len(csv_set)}")
-    print(f"匹配条数: {len(query_set & csv_set)}")
+    # Output comparison results
+    print("\n===== Result Comparison =====")
+    print(f"Number of query results: {len(query_set)}")
+    print(f"Number of CSV file entries: {len(csv_set)}")
+    print(f"Number of matching entries: {len(query_set & csv_set)}")
 
     if not only_query and not only_csv:
-        print("✅ 结果完全一致")
+        print("✅ Results are identical")
         return
 
     if only_query:
-        print(f"\n❌ 仅查询结果存在的记录 ({len(only_query)}条):")
-        for item in sorted(only_query):  # 排序后输出，便于查看
+        print(f"\n❌ Records only in query results ({len(only_query)} entries):")
+        for item in sorted(only_query):  # Sort before output for easier viewing
             print(f"  {item}")
 
     if only_csv:
-        print(f"\n❌ 仅CSV文件存在的记录 ({len(only_csv)}条):")
-        for item in sorted(only_csv):  # 排序后输出，便于查看
+        print(f"\n❌ Records only in CSV file ({len(only_csv)} entries):")
+        for item in sorted(only_csv):  # Sort before output for easier viewing
             print(f"  {item}")
 
 
 if __name__ == "__main__":
-    # 配置文件路径
+    # Configure file paths
     TPCH_Q3_TBL_PATH = "./data/tpch_q3.tbl"
     QUERY_FILE = "./query3.sql"
-    OUTPUT_CSV_PATH = "./data/output.csv"  # 新增：output.csv路径
+    OUTPUT_CSV_PATH = "./data/output.csv"  # New: Path to output.csv
 
     process_tpch_q3(TPCH_Q3_TBL_PATH, QUERY_FILE, OUTPUT_CSV_PATH)

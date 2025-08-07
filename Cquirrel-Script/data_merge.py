@@ -6,12 +6,12 @@ def read_lines(file_name, limit=None):
     return lines[:limit] if limit else lines
 
 def generate_q3_input():
-    # 读取TPC-H原始表数据
+    # Read the original TPC-H table data
     customer_lines = read_lines('./data/customer.tbl')
-    orders_lines = read_lines('./data/orders.tbl', 100000)  # 限制订单数据量
+    orders_lines = read_lines('./data/orders.tbl', 100000)  # Limit the order data volume
     lineitem_lines = read_lines('./data/lineitem.tbl', 500000)
 
-    # 生成带操作符的输入数据（INSERT/DELETE）
+    # Generate input data with operation symbols (INSERT/DELETE)
     output = []
     for line in customer_lines:
         output.append(f"INSERT|customer|{line.strip()}")
@@ -20,13 +20,13 @@ def generate_q3_input():
     for line in lineitem_lines:
         output.append(f"INSERT|lineitem|{line.strip()}")
 
-    # 随机插入一些DELETE操作（模拟数据变更）
+    # Randomly insert some DELETE operations (to simulate data changes)
     random.shuffle(output)
-    for i in range(1000):  # 随机删除1000条记录
+    for i in range(1000):  # Randomly delete 1000 records
         idx = random.randint(0, len(output)-1)
         output[idx] = output[idx].replace("INSERT", "DELETE")
 
-    # 写入输出文件
+    # Write to the output file
     with open('./data/tpch_q3.tbl', 'w') as f:
         f.write('\n'.join(output))
 
