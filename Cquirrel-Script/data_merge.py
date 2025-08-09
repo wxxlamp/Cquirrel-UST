@@ -8,8 +8,8 @@ def read_lines(file_name, limit=None):
 def generate_q3_input():
     # Read the original TPC-H table data
     customer_lines = read_lines('./data/customer.tbl')
-    orders_lines = read_lines('./data/orders.tbl', 100000)  # Limit the order data volume
-    lineitem_lines = read_lines('./data/lineitem.tbl', 500000)
+    orders_lines = read_lines('./data/orders.tbl')
+    lineitem_lines = read_lines('./data/lineitem.tbl')
 
     # Generate input data with operation symbols (INSERT/DELETE)
     output = []

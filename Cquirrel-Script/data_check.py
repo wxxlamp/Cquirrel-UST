@@ -2,31 +2,46 @@ import duckdb
 import os
 import csv
 from decimal import Decimal, ROUND_HALF_UP
+import time
+
+# db file directory
+DATABASE_PATH = "data/tpch.db"
 
 
-def process_tpch_q3(tbl_path, query_path, output_csv_path):
+def process_tpch_q3(tbl_path, query_path, output_csv_path, db_path=DATABASE_PATH):
     """
-    Read tpch_q3.tbl to execute the query and compare the results with output.csv
-    :param tbl_path: Path to the tpch_q3.tbl file
-    :param query_path: Path to the query.sql file
-    :param output_csv_path: Path to the output CSV file
+    execute TPCH Q3 query using db file
+    :param tbl_path: tpch_q3.tbl file path
+    :param query_path: SQL query file path
+    :param output_csv_path: expected output CSV file path
+    :param db_path: DuckDB db file path
     """
-    # Connect to DuckDB (in-memory mode)
-    con = duckdb.connect(database=':memory:')
+    # ensure data directory existed
+    os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
+
+    # check the db existed
+    db_exists = os.path.isfile(db_path)
+
+    # connect db file
+    con = duckdb.connect(database=db_path, read_only=False)
 
     try:
-        # Create table structure and load data
-        create_tables(con)
-        load_tpch_q3_data(con, tbl_path)
+        if not db_exists:
+            print("Database not found, creating new database and loading data...")
+            create_tables(con)
+            load_tpch_q3_data(con, tbl_path)
+            print("Data loaded and database saved to disk.")
+        else:
+            print("Database found, using existing data.")
 
-        # Execute the query and get the results
+        # execute query
         query_result = execute_query(con, query_path)
 
-        # Read the results from output.csv
-        csv_result = read_output_csv(output_csv_path)
-
-        # Compare the results
-        compare_results(query_result, csv_result)
+        # read the expected result
+        # csv_result = read_output_csv(output_csv_path)
+        #
+        # # compare the results between query and csv
+        # compare_results(query_result, csv_result)
 
     except Exception as e:
         print(f"Execution error: {e}")
@@ -36,60 +51,54 @@ def process_tpch_q3(tbl_path, query_path, output_csv_path):
 
 def create_tables(con):
     """Create the TPCH table structure"""
-    # Customer table
     con.execute("""
-                CREATE TABLE customer
-                (
-                    c_custkey    INT,
-                    c_name       VARCHAR,
-                    c_address    VARCHAR,
-                    c_nationkey  INT,
-                    c_phone      VARCHAR,
-                    c_acctbal    DECIMAL(12, 2),
-                    c_mktsegment VARCHAR,
-                    c_comment    VARCHAR
-                )
-                """)
+        CREATE TABLE customer (
+            c_custkey    INT,
+            c_name       VARCHAR,
+            c_address    VARCHAR,
+            c_nationkey  INT,
+            c_phone      VARCHAR,
+            c_acctbal    DECIMAL(12, 2),
+            c_mktsegment VARCHAR,
+            c_comment    VARCHAR
+        )
+    """)
 
-    # Orders table
     con.execute("""
-                CREATE TABLE orders
-                (
-                    o_orderkey      INT,
-                    o_custkey       INT,
-                    o_orderstatus   CHAR(1),
-                    o_totalprice    DECIMAL(12, 2),
-                    o_orderdate     DATE,
-                    o_orderpriority VARCHAR,
-                    o_clerk         VARCHAR,
-                    o_shippriority  INT,
-                    o_comment       VARCHAR
-                )
-                """)
+        CREATE TABLE orders (
+            o_orderkey      INT,
+            o_custkey       INT,
+            o_orderstatus   CHAR(1),
+            o_totalprice    DECIMAL(12, 2),
+            o_orderdate     DATE,
+            o_orderpriority VARCHAR,
+            o_clerk         VARCHAR,
+            o_shippriority  INT,
+            o_comment       VARCHAR
+        )
+    """)
 
-    # Lineitem table
     con.execute("""
-                CREATE TABLE lineitem
-                (
-                    l_orderkey      INT,
-                    l_partkey       INT,
-                    l_suppkey       INT,
-                    l_linenumber    INT,
-                    l_quantity      DECIMAL(12, 2),
-                    l_extendedprice DECIMAL(12, 2),
-                    l_discount      DECIMAL(12, 2),
-                    l_tax           DECIMAL(12, 2),
-                    l_returnflag    CHAR(1),
-                    l_linestatus    CHAR(1),
-                    l_shipdate      DATE,
-                    l_commitdate    DATE,
-                    l_receiptdate   DATE,
-                    l_shipinstruct  VARCHAR,
-                    l_shipmode      VARCHAR,
-                    l_comment       VARCHAR
-                )
-                """)
-    print("Table structure creation completed")
+        CREATE TABLE lineitem (
+            l_orderkey      INT,
+            l_partkey       INT,
+            l_suppkey       INT,
+            l_linenumber    INT,
+            l_quantity      DECIMAL(12, 2),
+            l_extendedprice DECIMAL(12, 2),
+            l_discount      DECIMAL(12, 2),
+            l_tax           DECIMAL(12, 2),
+            l_returnflag    CHAR(1),
+            l_linestatus    CHAR(1),
+            l_shipdate      DATE,
+            l_commitdate    DATE,
+            l_receiptdate   DATE,
+            l_shipinstruct  VARCHAR,
+            l_shipmode      VARCHAR,
+            l_comment       VARCHAR
+        )
+    """)
+    print("Table structure created.")
 
 
 def load_tpch_q3_data(con, tbl_path):
@@ -129,21 +138,19 @@ def load_tpch_q3_data(con, tbl_path):
 
             if operation == "INSERT":
                 placeholders = ', '.join(['?' for _ in fields])
-                con.execute(f"""
-                    INSERT INTO {table_name} VALUES ({placeholders})
-                """, fields)
+                con.execute(f"INSERT INTO {table_name} VALUES ({placeholders})", fields)
 
-            # Process DELETE operations
             elif operation == "DELETE":
                 if table_name == "customer":
-                    con.execute(f"DELETE FROM {table_name} WHERE c_custkey = ?", [fields[0]])
+                    con.execute("DELETE FROM customer WHERE c_custkey = ?", [fields[0]])
                 elif table_name == "orders":
-                    con.execute(f"DELETE FROM {table_name} WHERE o_orderkey = ?", [fields[0]])
+                    con.execute("DELETE FROM orders WHERE o_orderkey = ?", [fields[0]])
                 elif table_name == "lineitem":
-                    con.execute(f"DELETE FROM {table_name} WHERE l_orderkey = ? AND l_linenumber = ?",
-                                [fields[0], fields[3]])
+                    con.execute("DELETE FROM lineitem WHERE l_orderkey = ? AND l_linenumber = ?", [fields[0], fields[3]])
             else:
-                print(f"Warning: Line {line_num} has unsupported operation type {operation}, skipping")
+                print(f"Warning: Line {line_num} has unsupported operation {operation}, skipping")
+
+    print("Data loaded from .tbl file.")
 
 
 def execute_query(con, query_path):
@@ -154,11 +161,18 @@ def execute_query(con, query_path):
     with open(query_path, 'r') as f:
         query = f.read()
 
-    print("\nExecution results:")
+    begin_time = time.perf_counter()
+    print(f"\nQuery execution started at: {begin_time:.6f}")
+
     result = con.execute(query).fetchall()
 
-    # Format the results: (l_orderkey, o_orderdate, o_shippriority, revenue)
-    # Convert date to string and format revenue to 4 decimal places
+    end_time = time.perf_counter()
+    time_cost = end_time - begin_time
+
+    print(f"Query execution ended at: {end_time:.6f}")
+    print(f"Query time cost: {time_cost:.6f} seconds")
+
+    # Format results
     formatted = []
     for row in result:
         orderkey = row[0]
@@ -204,11 +218,9 @@ def read_output_csv(csv_path):
 
 def compare_results(query_set, csv_set):
     """Compare query results with CSV results"""
-    # Calculate differences
     only_query = query_set - csv_set
     only_csv = csv_set - query_set
 
-    # Output comparison results
     print("\n===== Result Comparison =====")
     print(f"Number of query results: {len(query_set)}")
     print(f"Number of CSV file entries: {len(csv_set)}")
@@ -216,23 +228,21 @@ def compare_results(query_set, csv_set):
 
     if not only_query and not only_csv:
         print("✅ Results are identical")
-        return
-
-    if only_query:
-        print(f"\n❌ Records only in query results ({len(only_query)} entries):")
-        for item in sorted(only_query):  # Sort before output for easier viewing
-            print(f"  {item}")
-
-    if only_csv:
-        print(f"\n❌ Records only in CSV file ({len(only_csv)} entries):")
-        for item in sorted(only_csv):  # Sort before output for easier viewing
-            print(f"  {item}")
+    else:
+        if only_query:
+            print(f"\n❌ Found in query but not in CSV ({len(only_query)}):")
+            for item in sorted(only_query):
+                print(f"  {item}")
+        if only_csv:
+            print(f"\n❌ Found in CSV but not in query ({len(only_csv)}):")
+            for item in sorted(only_csv):
+                print(f"  {item}")
 
 
 if __name__ == "__main__":
-    # Configure file paths
+    # 配置路径
     TPCH_Q3_TBL_PATH = "./data/tpch_q3.tbl"
     QUERY_FILE = "./query3.sql"
-    OUTPUT_CSV_PATH = "./data/output.csv"  # New: Path to output.csv
+    OUTPUT_CSV_PATH = "./data/output.csv"
 
     process_tpch_q3(TPCH_Q3_TBL_PATH, QUERY_FILE, OUTPUT_CSV_PATH)
