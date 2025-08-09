@@ -38,10 +38,10 @@ def process_tpch_q3(tbl_path, query_path, output_csv_path, db_path=DATABASE_PATH
         query_result = execute_query(con, query_path)
 
         # read the expected result
-        # csv_result = read_output_csv(output_csv_path)
-        #
-        # # compare the results between query and csv
-        # compare_results(query_result, csv_result)
+        csv_result = read_output_csv(output_csv_path)
+
+        # compare the results between query and csv
+        compare_results(query_result, csv_result)
 
     except Exception as e:
         print(f"Execution error: {e}")

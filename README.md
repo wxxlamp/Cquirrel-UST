@@ -1,7 +1,7 @@
 # Cquirrel-UST
 The code repo is for HKUST Individual project: Cquirrel
 
-# 1. The Program Archtecture
+# 1. The Program Architecture
 
 ![alt text](cquirrel-ust.drawio.png)
 
