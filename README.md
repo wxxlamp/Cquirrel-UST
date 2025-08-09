@@ -22,7 +22,7 @@ The code repo is for HKUST Individual project: Cquirrel
 
 * Cquirrel is **faster** than db query.
 
-# 3. How to run this program
+# 4. How to run this program
 1. Read the readme files in both Core and Script directories and run the commands, OR
 2. Run the `bash run.sh` directly to observe the result.
 
