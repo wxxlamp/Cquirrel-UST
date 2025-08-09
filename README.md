@@ -1,4 +1,4 @@
-# Cquirrel-UST
+# Real-time Processing of TPC-H Query 3 via Cquirrel-UST-Enhanced Flink
 The code repo is for HKUST Individual project: Cquirrel
 
 # 1. The Program Architecture
